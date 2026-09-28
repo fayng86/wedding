@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seating Floor Plan & Attendance Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        tblBlue: '#5b9bd5',
+                        tblGrey: '#cccccc',
+                        attendedDark: '#1e3a8a',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* Fixed grid layout for uniform centering and alignment across Canopy, Glasshouse, and Extension */
+        .table-row-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+            align-items: stretch;
+            width: 100%;
+        }
+        
+        .seat-slot {
+            transition: all 0.15s ease-in-out;
+            min-height: 22px;
+            font-size: 11px;
+            line-height: 1.25;
+            border-radius: 3px;
+            white-space: nowrap; /* Ensures name stays on a single line */
+            overflow: visible;  /* Displays full name without truncation */
+        }
+        
+        /* High resolution responsive typography adjustments */
+        @media (min-width: 1280px) {
+            .seat-slot {
+                font-size: 11.5px;
+            }
+        }
+        
+        /* Dark blue highlight for attendance = 1 */
+        .seat-slot.attended {
+            background-color: #1e3a8a !important; /* Dark Blue */
+            color: #ffffff !important;
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+
+        .seat-slot.absent {
+            background-color: transparent;
+            color: #1e293b;
+        }
+
+        .table-badge-blue {
+            background-color: #5b9bd5;
+            color: #0f172a;
+            border-color: #4172a1;
+        }
+        
+        .table-badge-grey {
+            background-color: #d1d5db;
+            color: #0f172a;
+            border-color: #9ca3af;
+        }
+
+        /* Vertical orientation for middle table code badges */
+        .badge-text-vertical {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            white-space: nowrap;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-[1920px] mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2 rounded-xl text-white">
+                    <i class="fa-solid fa-layer-group text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight leading-tight">Seating Floor Plan & Attendance Dashboard</h1>
+                    <p class="text-xs text-slate-400">Expanded Full Screen View — Full Name Display & Aligned Floor Plan</p>
+                </div>
+            </div>
+
+            <!-- Header Quick Stats -->
+            <div class="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-xl text-xs sm:text-sm border border-slate-700">
+                <div class="text-center px-2 border-r border-slate-700">
+                    <span class="text-[11px] text-slate-400 block">Total Capacity</span>
+                    <span id="stat-total" class="font-bold text-white text-base">0</span>
+                </div>
+                <div class="text-center px-2 border-r border-slate-700">
+                    <span class="text-[11px] text-blue-400 block">Attended (1)</span>
+                    <span id="stat-attended" class="font-bold text-blue-400 text-base">0</span>
+                </div>
+                <div class="text-center px-2 border-r border-slate-700">
+                    <span class="text-[11px] text-slate-400 block">Absent (0)</span>
+                    <span id="stat-absent" class="font-bold text-slate-300 text-base">0</span>
+                </div>
+                <div class="text-center px-2">
+                    <span class="text-[11px] text-emerald-400 block">Attendance Rate</span>
+                    <span id="stat-rate" class="font-bold text-emerald-400 text-base">0%</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-[1920px] w-full mx-auto px-3 sm:px-6 py-6 space-y-6">
+
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+            <div class="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center">
+                
+                <!-- Search & Filters -->
+                <div class="flex flex-wrap items-center gap-3 flex-grow">
+                    <div class="relative min-w-[240px] flex-grow sm:flex-grow-0">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="guest-search" placeholder="Search guest name..." 
+                            class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+
+                    <!-- Attendance Filter Tabs -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-medium text-slate-600">
+                        <button id="filter-all" onclick="setFilter('all')" class="px-3 py-1.5 rounded-lg bg-white shadow-xs font-semibold text-slate-800">All Guests</button>
+                        <button id="filter-attended" onclick="setFilter('attended')" class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition">Attended (1)</button>
+                        <button id="filter-absent" onclick="setFilter('absent')" class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition">Absent (0)</button>
+                    </div>
+
+                    <!-- View Switcher -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-medium text-slate-600 ml-auto sm:ml-0">
+                        <button id="btn-view-floor" onclick="switchView('floor')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold shadow-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-map"></i> Floor Plan Layout
+                        </button>
+                        <button id="btn-view-dashboard" onclick="switchView('dashboard')" class="px-3 py-1.5 rounded-lg hover:text-slate-900 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-table-list"></i> Attendance List
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API & Simulation Buttons -->
+                <div class="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <button onclick="toggleApiModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs">
+                        <i class="fa-solid fa-code"></i> API JSON Config
+                    </button>
+                    <button onclick="randomizeAttendance()" class="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs">
+                        <i class="fa-solid fa-shuffle"></i> Simulate Attendance
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Legend Bar -->
+            <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-6 text-xs text-slate-600">
+                <span class="font-bold text-slate-800">Legend:</span>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-[#1e3a8a] border border-blue-900 inline-block shadow-xs"></span>
+                    <span>Attended (<code class="text-blue-900 font-bold">attendance = 1</code>) - <b>Dark Blue</b></span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-white border border-slate-300 inline-block shadow-xs"></span>
+                    <span>Absent (<code class="text-slate-500">attendance = 0</code>) - White / Standard</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-[#5b9bd5] border border-blue-500 inline-block"></span>
+                    <span>Blue Table Badge</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-[#d1d5db] border border-slate-400 inline-block"></span>
+                    <span>Grey Table Badge</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-floorplan" class="block space-y-6">
+            
+            <!-- Dynamic Proportional Columns for Full Screen Display -->
+            <div class="grid grid-cols-1 xl:grid-cols-12 gap-3 lg:gap-4 items-start">
+                
+                <!-- CANOPY SECTION (Left) - Expanded to 5 columns with generous width for longest names -->
+                <div class="xl:col-span-5 bg-white p-3 rounded-2xl shadow-sm border border-slate-300 relative">
+                    <div class="text-center font-bold text-base text-slate-900 tracking-wide uppercase mb-3 border-b pb-2 border-slate-200">
+                        Canopy
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-start">
+                        <!-- Left Block: T26 to T31 -->
+                        <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50 flex flex-col justify-center">
+                            <div class="space-y-1.5 w-full" id="block-canopy-1"></div>
+                        </div>
+
+                        <!-- Right Block: T20 to T25 -->
+                        <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50 flex flex-col justify-center">
+                            <div class="space-y-1.5 w-full" id="block-canopy-2"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center font-bold text-slate-800 mt-3 text-xs tracking-wider uppercase">
+                        Canopy
+                    </div>
+                </div>
+
+                <!-- GLASSHOUSE SECTION (Center) - Allocated 4.5/12 ratio width -->
+                <div class="xl:col-span-5 bg-white p-3 rounded-2xl shadow-sm border border-slate-300 relative">
+                    <div class="text-center font-bold text-base text-slate-900 tracking-wide uppercase mb-3 border-b pb-2 border-slate-200">
+                        Glasshouse
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Left Sub-column (T13-T16 and T17-T19) -->
+                        <div class="space-y-2.5">
+                            <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50">
+                                <div class="space-y-1.5 w-full" id="block-glasshouse-1"></div>
+                            </div>
+
+                            <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50">
+                                <div class="space-y-1.5 w-full" id="block-glasshouse-3"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right Sub-column (T6-T9 and T10-T12) -->
+                        <div class="space-y-2.5">
+                            <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50">
+                                <div class="space-y-1.5 w-full" id="block-glasshouse-2"></div>
+                            </div>
+
+                            <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50">
+                                <div class="space-y-1.5 w-full" id="block-glasshouse-4"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center font-bold text-slate-800 mt-3 text-xs tracking-wider uppercase">
+                        Glasshouse
+                    </div>
+                </div>
+
+                <!-- EXTENSION SECTION (Right) - Allocated 2.5/12 ratio width -->
+                <div class="xl:col-span-2 bg-white p-2.5 rounded-2xl shadow-sm border border-slate-300 relative">
+                    <div class="text-center font-bold text-base text-slate-900 tracking-wide uppercase mb-3 border-b pb-2 border-slate-200">
+                        Extension
+                    </div>
+
+                    <div class="border border-slate-400 p-1.5 rounded-lg bg-slate-50/50">
+                        <div class="space-y-1.5 w-full" id="block-extension"></div>
+                    </div>
+
+                    <div class="text-center font-bold text-slate-800 mt-3 text-xs tracking-wider uppercase">
+                        Extension
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="view-dashboard" class="hidden space-y-6">
+            
+            <!-- Summary KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Total Guests</p>
+                            <h3 id="dash-total" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                        </div>
+                        <div class="w-10 h-10 bg-slate-100 text-slate-700 rounded-xl flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-blue-700 uppercase">Attended (1)</p>
+                            <h3 id="dash-attended" class="text-2xl font-bold text-blue-900 mt-1">0</h3>
+                        </div>
+                        <div class="w-10 h-10 bg-blue-100 text-blue-900 rounded-xl flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Absent (0)</p>
+                            <h3 id="dash-absent" class="text-2xl font-bold text-slate-600 mt-1">0</h3>
+                        </div>
+                        <div class="w-10 h-10 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-user-xmark"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-semibold text-emerald-600 uppercase">Attendance Rate</p>
+                            <h3 id="dash-rate" class="text-2xl font-bold text-emerald-600 mt-1">0%</h3>
+                        </div>
+                        <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-lg">
+                            <i class="fa-solid fa-chart-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table Breakdown -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-4 bg-slate-50">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Attendance List & Guest Table Breakdown</h2>
+                        <p class="text-xs text-slate-500">View and toggle attendance status for each registered guest</p>
+                    </div>
+                    <button onclick="exportGuestData()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs">
+                        <i class="fa-solid fa-file-csv"></i> Export CSV
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                    <table class="w-full text-left text-xs text-slate-700">
+                        <thead class="bg-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-600 sticky top-0 z-10 border-b">
+                            <tr>
+                                <th class="px-5 py-3">#</th>
+                                <th class="px-5 py-3">Guest Name</th>
+                                <th class="px-5 py-3">Zone Section</th>
+                                <th class="px-5 py-3">Table Code</th>
+                                <th class="px-5 py-3">Side</th>
+                                <th class="px-5 py-3 text-center">Status</th>
+                                <th class="px-5 py-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboard-table-body" class="divide-y divide-slate-200">
+                            <!-- Dynamic Table Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="api-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden">
+            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-code text-blue-600"></i> API JSON Attendance Config
+                </h3>
+                <button onclick="toggleApiModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-700 font-semibold mb-1">API Endpoint URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="api-url-input" placeholder="https://api.example.com/attendance" 
+                            class="flex-grow px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <button onclick="fetchFromApi()" class="px-3 py-2 bg-blue-600 text-white font-semibold rounded-xl text-xs hover:bg-blue-700 transition">
+                            Fetch
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <label class="block text-slate-700 font-semibold mb-1">Payload JSON (<code class="text-blue-600">[{ "name": "...", "attendance": 1 }]</code>)</label>
+                    <textarea id="api-json-input" rows="8" class="w-full p-3 font-mono text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="[{ 'name': 'Law Ken Keong', 'attendance': 1 }, ...]"></textarea>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                <button onclick="toggleApiModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs hover:bg-slate-300 transition">
+                    Cancel
+                </button>
+                <button onclick="applyCustomJson()" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl text-xs hover:bg-blue-700 transition">
+                    Apply JSON Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Exact Seating Data structured according to image layout
+        const seatingData = [
+            // --- CANOPY SECTION BLOCK 1 (Left Column: T26 to T31) ---
+            { table: 'T26', color: 'blue', zone: 'Canopy', block: 1, left: ["Law Ken Keong", "Melissa Chin", "Yi Wooi"], right: ["Chong Li Sheng", "Shermaine Goh", "Heidi Lor"] },
+            { table: 'T27', color: 'grey', zone: 'Canopy', block: 1, left: ["Kim Ling Yew", "Ivan Khoo", "Wei Chin"], right: ["Rex Chai", "Karena Kee", "Jian Feng"] },
+            { table: 'T28', color: 'blue', zone: 'Canopy', block: 1, left: ["Wai Leong", "Yeong Huei", "Chee Kean"], right: ["Teng Foung", "Belinda Koh", "Lim Kim Hui"] },
+            { table: 'T29', color: 'grey', zone: 'Canopy', block: 1, left: ["Adrian Loo", "Sin Yee", "Kevin Sew"], right: ["Nicole Leong", "Yu Chen", "Terence Tai"] },
+            { table: 'T30', color: 'blue', zone: 'Canopy', block: 1, left: ["Chuan Shiang", "Lim En Xi", "Tan Pui Mun"], right: ["Nicole Chong", "Justin", "Tan Sier Mei"] },
+            { table: 'T31', color: 'grey', zone: 'Canopy', block: 1, left: ["Alex Lai"], right: ["Yeung Chin Chin", "Chan Huan Yau"] },
+
+            // --- CANOPY SECTION BLOCK 2 (Right Column: T20 to T25) ---
+            { table: 'T20', color: 'blue', zone: 'Canopy', block: 2, left: ["Rennie Chang", "Shealy Tay", "Karen Lau"], right: ["Wei Di", "Alicia", "Chee Fong"] },
+            { table: 'T21', color: 'grey', zone: 'Canopy', block: 2, left: ["Kwok Joe", "Brian Cheow", "Colin Kwan"], right: ["Hita Lim", "Radius Khor", "Khaizal"] },
+            { table: 'T22', color: 'blue', zone: 'Canopy', block: 2, left: ["Cheng Hoe", "Choon Foong", "Cindy Oo"], right: ["Iylia", "Benny Wong", "Chiun Nien"] },
+            { table: 'T23', color: 'grey', zone: 'Canopy', block: 2, left: ["Jeff Ooi", "Jacob Ooi", "Chien Hui"], right: ["Evelyn Chan", "Lenson Tan", "Neo Yen Yen"] },
+            { table: 'T23A', color: 'blue', zone: 'Canopy', block: 2, left: ["Chung Wai Yao"], right: ["Heng Ming", "Ivy Ng Hooi Lang"] },
+            { table: 'T25', color: 'grey', zone: 'Canopy', block: 2, left: [], right: [] },
+
+            // --- GLASSHOUSE BLOCK 1 ---
+            { table: 'T13', color: 'blue', zone: 'Glasshouse', block: 1, left: ["Fay's Dad", "Fay's Mom", "Chee Eng"], right: ["Fay", "Tracy", "Chee Tiong"] },
+            { table: 'T13A', color: 'grey', zone: 'Glasshouse', block: 1, left: ["Desmond Son", "Desmond Son", "Desmond Daughter"], right: ["Desmond Ng", "Peggy", "Ah Kiat"] },
+            { table: 'T15', color: 'blue', zone: 'Glasshouse', block: 1, left: ["Rona Ng", "Ah Huat", "Shaun"], right: ["Vincent Ng", "Ah Bob", "Ah Bob Brother"] },
+            { table: 'T16', color: 'grey', zone: 'Glasshouse', block: 1, left: ["3 Jim", "3 Jim 2", "3 Jim 3"], right: ["Ah Luan", "Ah Luan Husband"] },
+
+            // --- GLASSHOUSE BLOCK 2 ---
+            { table: 'T6', color: 'blue', zone: 'Glasshouse', block: 2, left: ["Jit Heng", "Karen Poon", "Peter Lim"], right: ["Wayne", "YeYong", "Kimberly Lim"] },
+            { table: 'T7', color: 'grey', zone: 'Glasshouse', block: 2, left: ["Pamela", "Lim Fang Jong", "Amelia"], right: ["Joel Thangiah", "Mabel Lee", "Lim Li Chen"] },
+            { table: 'T8', color: 'blue', zone: 'Glasshouse', block: 2, left: ["Kong May Ling", "Sharlett Phan", "Elaine Khoo"], right: ["Lim Yee Ling", "Phan Pei An", "Phan Jian Liang"] },
+            { table: 'T9', color: 'grey', zone: 'Glasshouse', block: 2, left: ["Pauline Phan", "Joe Lee", "Nicole Lee"], right: ["Elise Low", "Poon May Keng", "Lee Jun Ming"] },
+
+            // --- GLASSHOUSE BLOCK 3 ---
+            { table: 'T17', color: 'blue', zone: 'Glasshouse', block: 3, left: ["Peck Heong Hubby", "Ah Boon", "An Boon Daughter", "Mei"], right: ["Peck Heong", "Peck Heong Son", "Ah Boon wife"] },
+            { table: 'T18', color: 'grey', zone: 'Glasshouse', block: 3, left: ["Elsa Lee Wan Yen", "Soong Min Feng", "Fam Chen Yep"], right: ["Daniel Pang", "Gary Soong", "Soong Zhi Ting"] },
+            { table: 'T19', color: 'blue', zone: 'Glasshouse', block: 3, left: ["Weng Kit", "Janice"], right: ["Ng Kar Weng", "Chay Kwok Goon", "Wee Liem"] },
+
+            // --- GLASSHOUSE BLOCK 4 ---
+            { table: 'T10', color: 'blue', zone: 'Glasshouse', block: 4, left: ["Poon Poh Chan", "Ng Guo Dong", "Chan Tai"], right: ["Ng Hong", "Vivian Chong", "Che Jia Jun"] },
+            { table: 'T11', color: 'grey', zone: 'Glasshouse', block: 4, left: ["Alex Chong", "Elise Tan", "Kai Ee"], right: ["Shun Yik", "Shun Yu", "Belky Chong"] },
+            { table: 'T12', color: 'blue', zone: 'Glasshouse', block: 4, left: ["Yun Xin", "Doris Tay", "Ming Sui"], right: ["Jyi Kein", "Nic Low"] },
+
+            // --- EXTENSION ---
+            { table: 'T1', color: 'blue', zone: 'Extension', block: 1, left: ["Hendry Tan", "Kiran", "Lesley Ng"], right: ["Jenny", "Terri Chan", "Kenzo"] },
+            { table: 'T2', color: 'grey', zone: 'Extension', block: 1, left: ["Valent", "Lyra Foo", "Hiromi Leda"], right: ["YC Lai", "Jiang WenXi", "Wu WeiYang"] },
+            { table: 'T3', color: 'blue', zone: 'Extension', block: 1, left: ["Kaya Nagayo", "Sandy Cho", "Tan Yoke Tsung"], right: ["Noriko Koizumi", "Chihiro Igarashi", "Fong Kar Man"] },
+            { table: 'T3A', color: 'grey', zone: 'Extension', block: 1, left: ["Wen Yee", "Esther Lee", "Junny Foo"], right: ["Deborah Loi", "Teo Kui Yuan", "Adeline Chai"] },
+            { table: 'T5', color: 'blue', zone: 'Extension', block: 1, left: ["Poppy", "Anderson Foo"], right: ["Elaine Tan", "CY Sam"] }
+        ];
+
+        let attendanceMap = {};
+        let currentFilter = 'all';
+        let currentSearchQuery = '';
+
+        function initAttendanceState() {
+            attendanceMap = {};
+            // Default sample attendance matching layout
+            const defaultAttended = [
+                "Law Ken Keong", "Yi Wooi", "Chong Li Sheng", "Rex Chai", "Lim Kim Hui",
+                "Lim En Xi", "Yu Chen", "Jeff Ooi", "Rennie Chang", "Fay's Dad", "Fay",
+                "Desmond Ng", "Sharlett Phan", "Soong Min Feng", "Soong Zhi Ting", "Shun Yik",
+                "Shun Yu", "Jyi Kein", "Kenzo", "Yun Xin", "Hendry Tan", "Elaine Tan"
+            ];
+
+            seatingData.forEach(tbl => {
+                [...tbl.left, ...tbl.right].forEach(name => {
+                    if (name && name.trim()) {
+                        attendanceMap[name] = defaultAttended.includes(name) ? 1 : 0;
+                    }
+                });
+            });
+        }
+
+        function renderFloorPlan() {
+            const blocks = {
+                'block-canopy-1': seatingData.filter(t => t.zone === 'Canopy' && t.block === 1),
+                'block-canopy-2': seatingData.filter(t => t.zone === 'Canopy' && t.block === 2),
+                'block-glasshouse-1': seatingData.filter(t => t.zone === 'Glasshouse' && t.block === 1),
+                'block-glasshouse-2': seatingData.filter(t => t.zone === 'Glasshouse' && t.block === 2),
+                'block-glasshouse-3': seatingData.filter(t => t.zone === 'Glasshouse' && t.block === 3),
+                'block-glasshouse-4': seatingData.filter(t => t.zone === 'Glasshouse' && t.block === 4),
+                'block-extension': seatingData.filter(t => t.zone === 'Extension')
+            };
+
+            for (const [blockId, tables] of Object.entries(blocks)) {
+                const container = document.getElementById(blockId);
+                if (!container) continue;
+
+                container.innerHTML = tables.map(tbl => {
+                    const badgeClass = tbl.color === 'blue' ? 'table-badge-blue' : 'table-badge-grey';
+                    const leftSlots = tbl.left.map(name => renderSeatSlot(name)).join('');
+                    const rightSlots = tbl.right.map(name => renderSeatSlot(name)).join('');
+
+                    return `
+                        <div class="table-row-grid border border-slate-300 rounded bg-white overflow-hidden shadow-2xs">
+                            <!-- Left Column -->
+                            <div class="p-1 space-y-0.5 border-r border-slate-200 flex flex-col justify-center min-w-0">
+                                ${leftSlots || '<div class="text-[10px] text-slate-300 italic px-1 text-center">-</div>'}
+                            </div>
+
+                            <!-- Centered & Vertically Aligned Table Badge -->
+                            <div class="${badgeClass} flex items-center justify-center font-bold border-x border-slate-400 select-none cursor-pointer text-center"
+                                 title="Table ${tbl.table}">
+                                <span class="badge-text-vertical text-[10px] font-extrabold tracking-wider py-1">${tbl.table}</span>
+                            </div>
+
+                            <!-- Right Column -->
+                            <div class="p-1 space-y-0.5 border-l border-slate-200 flex flex-col justify-center min-w-0">
+                                ${rightSlots || '<div class="text-[10px] text-slate-300 italic px-1 text-center">-</div>'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderSeatSlot(name) {
+            const isAttended = attendanceMap[name] === 1;
+            const matchesSearch = currentSearchQuery && name.toLowerCase().includes(currentSearchQuery.toLowerCase());
+            const matchesFilter = 
+                currentFilter === 'all' || 
+                (currentFilter === 'attended' && isAttended) || 
+                (currentFilter === 'absent' && !isAttended);
+
+            if (!matchesFilter && !matchesSearch) {
+                return `<div class="seat-slot px-1 py-0.5 opacity-20 bg-slate-50 text-slate-400" title="${name}">${name}</div>`;
+            }
+
+            const statusClass = isAttended ? 'attended' : 'absent hover:bg-slate-100';
+            const highlightClass = matchesSearch ? 'ring-2 ring-amber-400 font-bold' : '';
+
+            return `
+                <div onclick="toggleGuestAttendance('${escapeQuotes(name)}')" 
+                     class="seat-slot px-1 py-0.5 cursor-pointer transition flex items-center justify-between ${statusClass} ${highlightClass}"
+                     title="${name} (attendance=${isAttended ? 1 : 0})">
+                    <span class="leading-tight">${name}</span>
+                    ${isAttended ? '<i class="fa-solid fa-check text-[8px] ml-1 flex-shrink-0"></i>' : ''}
+                </div>
+            `;
+        }
+
+        function escapeQuotes(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function renderDashboardTable() {
+            const tbody = document.getElementById('dashboard-table-body');
+            if (!tbody) return;
+
+            let index = 1;
+            let rowsHtml = '';
+
+            seatingData.forEach(tbl => {
+                const addGuests = (list, side) => {
+                    list.forEach(name => {
+                        const isAttended = attendanceMap[name] === 1;
+
+                        if (currentFilter === 'attended' && !isAttended) return;
+                        if (currentFilter === 'absent' && isAttended) return;
+                        if (currentSearchQuery && !name.toLowerCase().includes(currentSearchQuery.toLowerCase())) return;
+
+                        rowsHtml += `
+                            <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                                <td class="px-5 py-2.5 font-mono text-slate-400 text-[11px]">${index++}</td>
+                                <td class="px-5 py-2.5 font-semibold text-slate-900">${name}</td>
+                                <td class="px-5 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium">${tbl.zone}</span></td>
+                                <td class="px-5 py-2.5 font-bold text-slate-800">${tbl.table}</td>
+                                <td class="px-5 py-2.5 text-slate-500 uppercase text-[10px]">${side}</td>
+                                <td class="px-5 py-2.5 text-center">
+                                    ${isAttended ? 
+                                        `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#1e3a8a] text-white">
+                                            <i class="fa-solid fa-circle-check text-[9px]"></i> Attended (1)
+                                         </span>` : 
+                                        `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                            <i class="fa-solid fa-circle-xmark text-[9px] text-slate-400"></i> Absent (0)
+                                         </span>`
+                                    }
+                                </td>
+                                <td class="px-5 py-2.5 text-right">
+                                    <button onclick="toggleGuestAttendance('${escapeQuotes(name)}')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition">
+                                        Toggle
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                };
+
+                addGuests(tbl.left, 'Left');
+                addGuests(tbl.right, 'Right');
+            });
+
+            if (!rowsHtml) {
+                rowsHtml = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-400 italic">
+                            No guests matching search/filter options.
+                        </td>
+                    </tr>
+                `;
+            }
+
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function updateStats() {
+            let total = 0;
+            let attended = 0;
+
+            Object.values(attendanceMap).forEach(val => {
+                total++;
+                if (val === 1) attended++;
+            });
+
+            const absent = total - attended;
+            const rate = total > 0 ? Math.round((attended / total) * 100) : 0;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-attended').innerText = attended;
+            document.getElementById('stat-absent').innerText = absent;
+            document.getElementById('stat-rate').innerText = rate + '%';
+
+            document.getElementById('dash-total').innerText = total;
+            document.getElementById('dash-attended').innerText = attended;
+            document.getElementById('dash-absent').innerText = absent;
+            document.getElementById('dash-rate').innerText = rate + '%';
+        }
+
+        function toggleGuestAttendance(name) {
+            attendanceMap[name] = attendanceMap[name] === 1 ? 0 : 1;
+            refreshUI();
+        }
+
+        function refreshUI() {
+            renderFloorPlan();
+            renderDashboardTable();
+            updateStats();
+            updateModalJsonText();
+        }
+
+        function randomizeAttendance() {
+            Object.keys(attendanceMap).forEach(name => {
+                attendanceMap[name] = Math.random() > 0.4 ? 1 : 0;
+            });
+            refreshUI();
+        }
+
+        function setFilter(filterType) {
+            currentFilter = filterType;
+            ['all', 'attended', 'absent'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (btn) {
+                    btn.className = f === filterType ? 
+                        "px-3 py-1.5 rounded-lg bg-white shadow-xs font-semibold text-slate-800" : 
+                        "px-3 py-1.5 rounded-lg hover:text-slate-900 transition";
+                }
+            });
+            refreshUI();
+        }
+
+        document.getElementById('guest-search').addEventListener('input', (e) => {
+            currentSearchQuery = e.target.value.trim();
+            refreshUI();
+        });
+
+        function switchView(viewName) {
+            const floorSec = document.getElementById('view-floorplan');
+            const dashSec = document.getElementById('view-dashboard');
+            const btnFloor = document.getElementById('btn-view-floor');
+            const btnDash = document.getElementById('btn-view-dashboard');
+
+            if (viewName === 'floor') {
+                floorSec.classList.remove('hidden');
+                dashSec.classList.add('hidden');
+                btnFloor.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold shadow-xs flex items-center gap-1.5";
+                btnDash.className = "px-3 py-1.5 rounded-lg hover:text-slate-900 transition flex items-center gap-1.5";
+            } else {
+                floorSec.classList.add('hidden');
+                dashSec.classList.remove('hidden');
+                btnDash.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold shadow-xs flex items-center gap-1.5";
+                btnFloor.className = "px-3 py-1.5 rounded-lg hover:text-slate-900 transition flex items-center gap-1.5";
+            }
+        }
+
+        function toggleApiModal() {
+            const modal = document.getElementById('api-modal');
+            modal.classList.toggle('hidden');
+            if (!modal.classList.contains('hidden')) {
+                updateModalJsonText();
+            }
+        }
+
+        function updateModalJsonText() {
+            const jsonArray = Object.keys(attendanceMap).map(name => ({
+                name: name,
+                attendance: attendanceMap[name]
+            }));
+            document.getElementById('api-json-input').value = JSON.stringify(jsonArray, null, 2);
+        }
+
+        function applyCustomJson() {
+            try {
+                const raw = document.getElementById('api-json-input').value;
+                const data = JSON.parse(raw);
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        if (item.name && (item.attendance === 0 || item.attendance === 1)) {
+                            attendanceMap[item.name] = item.attendance;
+                        }
+                    });
+                    refreshUI();
+                    toggleApiModal();
+                } else {
+                    alert('Invalid JSON array format.');
+                }
+            } catch (err) {
+                alert('JSON Error: ' + err.message);
+            }
+        }
+
+        function fetchFromApi() {
+            const url = document.getElementById('api-url-input').value.trim();
+            if (!url) {
+                alert('Please enter a valid API URL.');
+                return;
+            }
+
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        data.forEach(item => {
+                            if (item.name && (item.attendance === 0 || item.attendance === 1)) {
+                                attendanceMap[item.name] = item.attendance;
+                            }
+                        });
+                        refreshUI();
+                        toggleApiModal();
+                    } else {
+                        alert('API response must be a JSON array.');
+                    }
+                })
+                .catch(err => alert('API Fetch failed: ' + err.message));
+        }
+
+        function exportGuestData() {
+            let csv = 'Name,Zone,Table,Side,Attendance\n';
+            seatingData.forEach(tbl => {
+                tbl.left.forEach(n => csv += `"${n}","${tbl.zone}","${tbl.table}","Left",${attendanceMap[n] || 0}\n`);
+                tbl.right.forEach(n => csv += `"${n}","${tbl.zone}","${tbl.table}","Right",${attendanceMap[n] || 0}\n`);
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `guest_attendance_${new Date().toISOString().slice(0,10)}.csv`);
+            a.click();
+        }
+
+        window.onload = function() {
+            initAttendanceState();
+            refreshUI();
+        };
+    </script>
+</body>
+</html>
