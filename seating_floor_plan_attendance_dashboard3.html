@@ -6,40 +6,49 @@
     <title>Seating Floor Plan & Attendance Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
 <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
+    *, *::before, *::after {
+        box-sizing: border-box;
+    }
 
-        body, html {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-        }
+    body, html {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: auto;
+    }
 
-        /* FORCE 3 COLUMNS SIDE-BY-SIDE ON ALL SCREENS */
-        main section:nth-of-type(2) > div {
-            display: grid !important;
-            grid-template-columns: repeat(3, minmax(280px, 1fr)) !important;
-            gap: 16px !important;
-            width: 100% !important;
-            overflow-x: auto !important; /* Enables smooth horizontal swipe/scroll on mobile */
-            -webkit-overflow-scrolling: touch !important;
-            padding-bottom: 12px !important;
-        }
+    /* 1. KEEP 3 MAIN COLUMNS (CANOPY, GLASSHOUSE, EXTENSION) SIDE-BY-SIDE */
+    main section:nth-of-type(2) > div {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(360px, 1fr)) !important;
+        gap: 20px !important;
+        width: 100% !important;
+        min-width: 1100px !important; /* Prevents 3 main columns from squishing on mobile */
+        overflow-x: auto !important;
+        padding-bottom: 15px !important;
+    }
 
-        /* PREVENT SECTIONS FROM SQUISHING */
-        main section:nth-of-type(2) > div > div {
-            min-width: 280px !important;
-        }
+    /* 2. FIX COMPRESSED GUEST NAMES INSIDE TABLE CARDS */
+    main section:nth-of-type(2) span, 
+    main section:nth-of-type(2) p, 
+    main section:nth-of-type(2) div {
+        white-space: nowrap !important; /* Prevents guest names from wrapping into lines */
+        text-overflow: ellipsis;
+    }
 
-        /* KEEP TABLES SCROLLABLE */
-        table {
-            display: block;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-    </style>
+    /* 3. ENSURE TABLE BADGES & SEATING PAIRS HAVE ADEQUATE MIN-WIDTH */
+    main section:nth-of-type(2) .grid,
+    main section:nth-of-type(2) [class*="grid"] {
+        min-width: max-content !important; /* Allows table card contents to fit names fully */
+    }
+
+    /* 4. ATTENDANCE SUMMARY TABLE AT BOTTOM */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+</style>
 </head>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
