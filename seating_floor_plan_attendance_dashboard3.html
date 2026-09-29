@@ -14,63 +14,29 @@
             width: 100%;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
         }
 
-        /* 1. MAINTAIN 3-COLUMN LAYOUT SIDE-BY-SIDE */
-        main section:nth-of-type(2) > div {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 24px !important;
-            width: 100% !important;
-            min-width: 1380px !important; /* Expanded total width to accommodate wider cards */
-            overflow-x: visible !important;
-        }
-
-        /* Outer wrapper for smooth horizontal scroll on smaller viewports */
-        main section:nth-of-type(2) {
-            width: 100% !important;
+        /* 1. HORIZONTAL SCROLL WRAPPER FOR FLOOR PLAN */
+        .floor-plan-scroll-wrapper {
+            width: 100%;
             overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            padding-bottom: 15px !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 12px;
         }
 
-        /* Individual Zone Columns (Canopy / Glasshouse / Extension) */
-        main section:nth-of-type(2) > div > div {
-            flex: 1 1 0px !important;
-            min-width: 440px !important; /* Provides ample room for 2-subcard tables */
+        /* 2. LOCK MINIMUM DIAGRAM WIDTH TO PREVENT TEXT SQUEEZING */
+        .floor-plan-content {
+            min-width: 1150px; /* Ensures desktop layout stays uncompressed on all screens */
         }
 
-        /* 2. OVERRIDE HARDCODED CARD WIDTHS SO TABLE CARDS CAN EXPAND */
-        main section:nth-of-type(2) [class*="w-"],
-        main section:nth-of-type(2) [class*="max-w-"] {
-            max-width: none !important;
-            width: auto !important;
+        /* 3. PREVENT NAME TEXT WRAPPING INSIDE TABLE SEATS */
+        .floor-plan-content p,
+        .floor-plan-content span {
+            white-space: nowrap !important;
         }
 
-        /* 3. ENSURE SEAT CONTAINERS & GUEST NAME LABELS NEVER SQUEEZE OR WRAP */
-        main section:nth-of-type(2) p,
-        main section:nth-of-type(2) span,
-        main section:nth-of-type(2) div {
-            white-space: nowrap !important; /* Force text to remain on a single line */
-        }
-
-        /* 4. SET MINIMUM WIDTH FOR LEFT & RIGHT SEAT COLUMNS AROUND TABLE BADGES */
-        main section:nth-of-type(2) .grid {
-            display: grid !important;
-            grid-template-columns: minmax(130px, auto) minmax(36px, auto) minmax(130px, auto) !important;
-            gap: 4px !important;
-            width: 100% !important;
-        }
-
-        /* Optimize padding and font size for clean readability */
-        main section:nth-of-type(2) p {
-            font-size: 0.8125rem !important; /* 13px font size */
-            padding-left: 6px !important;
-            padding-right: 6px !important;
-        }
-
-        /* 5. KEEP ATTENDANCE TABLE SCROLLABLE */
+        /* 4. ATTENDANCE LIST TABLE SCROLL */
         table {
             display: block;
             overflow-x: auto;
