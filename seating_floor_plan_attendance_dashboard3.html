@@ -701,5 +701,14 @@
             setInterval(fetchApiData, 5000); // Auto refresh every 5s
         };
     </script>
+    <script>
+      function sendHeight() {
+        const height = document.body.scrollHeight;
+        window.parent.postMessage({ frameHeight: height }, '*');
+      }
+
+      window.addEventListener('load', sendHeight);
+      window.addEventListener('resize', sendHeight);
+    </script>
 </body>
 </html>
