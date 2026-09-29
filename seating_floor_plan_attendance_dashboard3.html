@@ -14,35 +14,46 @@
         width: 100%;
         margin: 0;
         padding: 0;
-        overflow-x: auto;
     }
 
-    /* 1. KEEP 3 MAIN COLUMNS (CANOPY, GLASSHOUSE, EXTENSION) SIDE-BY-SIDE */
+    /* 1. FORCE CANOPY, GLASSHOUSE, EXTENSION SIDE-BY-SIDE ON ALL SCREENS */
     main section:nth-of-type(2) > div {
-        display: grid !important;
-        grid-template-columns: repeat(3, minmax(360px, 1fr)) !important;
-        gap: 20px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 24px !important;
         width: 100% !important;
-        min-width: 1100px !important; /* Prevents 3 main columns from squishing on mobile */
+        min-width: 1280px !important; /* Locks full 3-column width on Desktop, Tablet & Mobile */
+        overflow-x: visible !important;
+    }
+
+    /* Outer wrapper for smooth horizontal scroll on mobile/tablet */
+    main section:nth-of-type(2) {
+        width: 100% !important;
         overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
         padding-bottom: 15px !important;
     }
 
-    /* 2. FIX COMPRESSED GUEST NAMES INSIDE TABLE CARDS */
-    main section:nth-of-type(2) span, 
-    main section:nth-of-type(2) p, 
-    main section:nth-of-type(2) div {
-        white-space: nowrap !important; /* Prevents guest names from wrapping into lines */
-        text-overflow: ellipsis;
+    /* Individual Zone Columns (Canopy / Glasshouse / Extension) */
+    main section:nth-of-type(2) > div > div {
+        flex: 1 1 0px !important;
+        min-width: 400px !important; /* Ensures each zone gets ample width for names */
     }
 
-    /* 3. ENSURE TABLE BADGES & SEATING PAIRS HAVE ADEQUATE MIN-WIDTH */
-    main section:nth-of-type(2) .grid,
-    main section:nth-of-type(2) [class*="grid"] {
-        min-width: max-content !important; /* Allows table card contents to fit names fully */
+    /* 2. PREVENT GUEST NAMES FROM SQUISHING & WRAPPING */
+    main section:nth-of-type(2) p,
+    main section:nth-of-type(2) span {
+        white-space: nowrap !important; /* Prevents text from breaking into multiple lines */
+        font-size: 0.825rem !important; /* Slightly optimizes font size so full names fit */
     }
 
-    /* 4. ATTENDANCE SUMMARY TABLE AT BOTTOM */
+    /* 3. ALLOW SEAT BLOCKS TO EXPAND FOR GUEST NAMES */
+    main section:nth-of-type(2) .grid {
+        grid-template-columns: minmax(110px, 1fr) auto minmax(110px, 1fr) !important;
+    }
+
+    /* 4. KEEP SUMMARY TABLE AT BOTTOM CLEAN */
     table {
         display: block;
         overflow-x: auto;
