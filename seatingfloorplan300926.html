@@ -407,8 +407,27 @@
             "Chee Tiong",
             "Chee Eng",
             "Bride's Father",
-            "Bride's Mother"
+            "Bride's Mother",
+            "Nicole Leong"
             // Add any other pre-confirmed guest names here
+        ];
+
+        // PARENT & DEPENDENT (CHILDREN/SPOUSE) MAPPING
+        // When the parent marks as attended in the API, all dependent guests automatically become attended (1)
+        const GUEST_DEPENDENCIES = [
+            {
+                parent: "Nicole Leong",
+                dependents: ["Yu Chen", "Yu Qian"]
+            },
+            {
+                parent: "Peck Heong",
+                dependents: ["Peck Heong Hubby", "Peck Heong Son"]
+            },
+            {
+                parent: "Chia Sia Boom",
+                dependents: ["An Boon Daughter", "Ah Boon wife"]
+            }
+            // Add any additional parents & their dependents here as needed!
         ];
 
         const seatingData = [
@@ -491,7 +510,7 @@
 
         function parseApiResponse(data) {
             let list = Array.isArray(data) ? data : (data.data || data.guests || []);
-
+// 1. Primary pass: Parse attendance directly from API
             list.forEach(item => {
                 const name = item.Name || item.name;
                 const att = item.Attendance !== undefined ? item.Attendance : item.attendance;
@@ -509,7 +528,16 @@
                     }
                 }
             });
-
+// 2. Cascade pass: Check parents and update dependent children/family
+    GUEST_DEPENDENCIES.forEach(group => {
+        if (attendanceMap[group.parent] === 1) {
+            group.dependents.forEach(childName => {
+                if (attendanceMap.hasOwnProperty(childName)) {
+                    attendanceMap[childName] = 1;
+                }
+            });
+        }
+    });
             refreshUI();
         }
 
